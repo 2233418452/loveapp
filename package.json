@@ -1,0 +1,57 @@
+{
+  "name": "heartbeat-companion",
+  "version": "1.0.0",
+  "description": "心动伴侣 - 你的专属恋爱桌面助手",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win",
+    "build:portable": "electron-builder --win portable"
+  },
+  "author": "心动伴侣",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.heartbeat.companion",
+    "productName": "心动伴侣",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "renderer.js",
+      "renderer-vue.js",
+      "styles.css",
+      "default-data.js",
+      "config.js",
+      "cloud.js",
+      "supabase/schema.sql",
+      "assets/**/*",
+      "vendor/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "signAndEditExecutable": false,
+      "forceCodeSigning": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "心动伴侣"
+    }
+  }
+}

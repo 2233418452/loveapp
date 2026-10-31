@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#ff6b9d">
+  <title>心动伴侣</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- 飘浮爱心背景 -->
+  <div class="hearts-bg" id="heartsBg"></div>
+
+  <!-- 邮箱登录 / 注册 -->
+  <div class="auth-gate" id="authGate" style="display:none;">
+    <div class="auth-card">
+      <div class="auth-logo">💖</div>
+      <h1 class="auth-title">心动伴侣</h1>
+      <p class="auth-sub">登录后生成绑定码，与TA实时共享位置、电量和每一天</p>
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-auth-tab="login">登录</button>
+        <button class="auth-tab" data-auth-tab="register">注册</button>
+      </div>
+      <label class="auth-field">
+        <span>邮箱</span>
+        <input type="email" id="authEmail" placeholder="you@example.com" autocomplete="email">
+      </label>
+      <label class="auth-field">
+        <span>密码</span>
+        <input type="password" id="authPassword" placeholder="至少 6 位" autocomplete="current-password">
+      </label>
+      <button class="btn btn-primary auth-submit" id="authSubmitBtn">登录</button>
+      <p class="auth-hint" id="authHint"></p>
+
+      <!-- 尚未配置 Supabase 时展开 -->
+      <div class="auth-config" id="authConfig" style="display:none;">
+        <p class="auth-config-tip">还没有连接 Supabase？填好下面两项即可注册 / 登录</p>
+        <label class="auth-field">
+          <span>Supabase URL</span>
+          <input type="text" id="authSupabaseUrl" placeholder="https://xxxx.supabase.co">
+        </label>
+        <label class="auth-field">
+          <span>anon public key</span>
+          <input type="text" id="authSupabaseKey" placeholder="Project Settings → API 里的 anon key">
+        </label>
+        <label class="auth-field">
+          <span>高德 Key（可选，用于文字地址）</span>
+          <input type="text" id="authAmapKey" placeholder="不填则只显示经纬度">
+        </label>
+        <button class="btn btn-secondary" id="authConfigSaveBtn">保存并连接</button>
+      </div>
+
+      <button class="auth-demo-link" id="authDemoBtn" type="button">先体验演示模式</button>
+      <p class="auth-foot">只允许你和已绑定的TA读取共享数据 · Supabase RLS 保护</p>
+    </div>
+  </div>
+
+  <div class="app-container">
+    <!-- 侧边栏导航 -->
+    <aside class="sidebar">
+      <div class="logo">
+        <span class="logo-icon">💖</span>
+        <span class="logo-text">心动伴侣</span>
+      </div>
+      <nav class="nav-menu">
+        <div class="nav-item active" data-page="home">
+          <span class="nav-icon">🏠</span>
+          <span class="nav-label">心动首页</span>
+        </div>
+        <div class="nav-item" data-page="chat">
+          <span class="nav-icon">💬</span>
+          <span class="nav-label">心动聊天</span>
+          <span class="nav-badge" id="navChatBadge" style="display:none;">0</span>
+        </div>
+        <div class="nav-item" data-page="bind">
+          <span class="nav-icon">💞</span>
+          <span class="nav-label">情侣绑定</span>
+        </div>
+        <div class="nav-item" data-page="anniversary">
+          <span class="nav-icon">📅</span>
+          <span class="nav-label">纪念日</span>
+        </div>
+        <div class="nav-item" data-page="diary">
+          <span class="nav-icon">📖</span>
+          <span class="nav-label">情感日记</span>
+        </div>
+        <div class="nav-item" data-page="interact">
+          <span class="nav-icon">💕</span>
+          <span class="nav-label">情侣互动</span>
+        </div>
+        <div class="nav-item" data-page="settings">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-label">设置</span>
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="love-tip">
+          <span class="tip-icon">✨</span>
+          <span class="tip-text" id="loveTip">加载中...</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+      <!-- 心动首页 -->
+      <section class="page active" id="page-home">
+        <div class="page-header">
+          <h1 class="page-title">心动首页</h1>
+          <p class="page-subtitle" id="homeDate"></p>
+        </div>
+
+        <div class="mood-bar" id="moodBar">
+          <div class="mood-bar-left">
+            <span class="mood-bar-label">今日心情</span>
+            <div class="mood-chips" id="moodChips">
+              <span class="mood-chip" data-mood="happy" onclick="setMood('happy')">😊 开心</span>
+              <span class="mood-chip" data-mood="miss" onclick="setMood('miss')">🥰 想你</span>
+              <span class="mood-chip" data-mood="tired" onclick="setMood('tired')">😴 疲惫</span>
+              <span class="mood-chip" data-mood="sad" onclick="setMood('sad')">😢 难过</span>
+              <span class="mood-chip" data-mood="angry" onclick="setMood('angry')">😤 生气</span>
+              <span class="mood-chip" data-mood="hope" onclick="setMood('hope')">🌈 期待</span>
+            </div>
+          </div>
+          <span class="mood-bar-hint" id="moodTodayText"></span>
+        </div>
+
+        <div class="home-hero">
+          <div class="love-counter-card">
+            <div class="counter-icon">💕</div>
+            <div class="counter-info">
+              <p class="counter-label">我们已经相爱</p>
+              <div class="counter-days">
+                <span class="days-number" id="loveDays">0</span>
+                <span class="days-unit">天</span>
+              </div>
+              <p class="counter-detail" id="loveDetail"></p>
+            </div>
+            <div class="floating-hearts">
+              <span>❤️</span><span>💖</span><span>💕</span><span>💗</span><span>💝</span>
+            </div>
+          </div>
+
+          <div class="daily-quote-card">
+            <div class="quote-icon">💌</div>
+            <p class="quote-text" id="dailyQuote">点击右侧按钮获取今日情话</p>
+            <p class="quote-author" id="dailyQuoteAuthor"></p>
+            <button class="btn btn-primary btn-quote" id="refreshQuote">换一句情话</button>
+          </div>
+        </div>
+
+        <div class="partner-status-card" id="partnerStatusCard">
+          <div class="partner-status-head">
+            <div class="partner-avatar">🧑‍🤝‍🧑</div>
+            <div class="partner-status-info">
+              <div class="partner-name-row">
+                <span class="partner-name" id="partnerNameHome">TA</span>
+                <span class="bind-badge" id="bindBadge">未绑定 · 演示数据</span>
+              </div>
+              <div class="partner-sub" id="partnerStatusAt">绑定后将实时同步TA的位置与电量</div>
+            </div>
+            <div class="partner-buttons">
+              <button class="btn btn-ghost btn-sm" id="refreshPartnerBtn">刷新状态</button>
+              <button class="btn btn-secondary btn-sm" id="goBindBtn">去绑定</button>
+            </div>
+          </div>
+          <div class="partner-meta">
+            <div class="meta-item">
+              <span class="meta-icon">📍</span>
+              <span class="meta-label">TA的位置</span>
+              <span class="meta-value" id="partnerLocation">演示数据</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-icon">🔋</span>
+              <span class="meta-label">手机电量</span>
+              <span class="meta-value" id="partnerBatteryText">演示数据</span>
+            </div>
+            <div class="battery-bar"><div class="battery-fill" id="batteryFill"></div></div>
+          </div>
+          <div class="weather-box" id="weatherBox" style="display:none;">
+            <div class="weather-main">
+              <span class="weather-icon" id="weatherIcon">🌤️</span>
+              <div class="weather-info">
+                <span class="weather-text" id="weatherText">天气待获取</span>
+                <span class="weather-location" id="weatherLocation"></span>
+              </div>
+            </div>
+          </div>
+          <div class="partner-foot" id="partnerSyncFoot">💡 未绑定时展示演示数据；绑定后每 30 秒自动上报位置与电量</div>
+        </div>
+
+        <!-- 中间：恋爱转盘 + 今日推荐 -->
+        <div class="home-middle" id="homeWheelSection">
+          <div class="wheel-panel">
+            <div id="vue-wheel-app"></div>
+            <p class="wheel-hint" id="wheelResultHint">点击中间的「开始」，看看今天的安排 ✨</p>
+          </div>
+
+          <div class="daily-pick-card">
+            <div class="daily-pick-head">
+              <span class="daily-pick-label">✨ 今日推荐</span>
+              <button class="btn btn-ghost btn-sm" id="refreshPickBtn">换一个</button>
+            </div>
+            <div class="daily-pick-emoji" id="dailyPickEmoji">🍜</div>
+            <h3 class="daily-pick-title" id="dailyPickTitle">一起探店</h3>
+            <p class="daily-pick-desc" id="dailyPickDesc">找一家没去过的小店，点上两份招牌。</p>
+            <div class="daily-pick-tag" id="dailyPickTag">约会灵感</div>
+          </div>
+        </div>
+
+        <!-- 模块导航 -->
+        <div class="feature-nav">
+          <button class="feature-tab" data-module="wheel">
+            <span class="feature-icon">🎡</span>
+            <span class="feature-title">恋爱转盘</span>
+            <span class="feature-meta">转一转</span>
+          </button>
+          <button class="feature-tab active" data-module="wish">
+            <span class="feature-icon">⭐</span>
+            <span class="feature-title">心愿清单</span>
+            <span class="feature-meta" id="navWishMeta">0 / 0 完成</span>
+          </button>
+          <button class="feature-tab" data-module="album">
+            <span class="feature-icon">📷</span>
+            <span class="feature-title">恋爱相册</span>
+            <span class="feature-meta" id="navAlbumMeta">0 张照片</span>
+          </button>
+          <button class="feature-tab" data-module="screen">
+            <span class="feature-icon">🖥️</span>
+            <span class="feature-title">实时同屏</span>
+            <span class="feature-meta" id="navScreenMeta">未连接</span>
+          </button>
+        </div>
+
+        <div class="home-modules" id="homeModules">
+          <!-- 心愿清单 -->
+          <div class="home-module-panel active" id="home-panel-wish">
+            <div class="module-head">
+              <h3 class="module-title">⭐ 心愿清单</h3>
+              <span class="module-sub" id="wishProgressText">0 / 0 已完成</span>
+            </div>
+            <div class="wish-progress-track"><div class="wish-progress-fill" id="wishProgressFill"></div></div>
+            <div class="wish-composer module-composer">
+              <input type="text" class="wish-input" id="wishModuleInput" placeholder="写下一个心愿，比如：一起去看海...">
+              <div class="author-options" id="wishAuthorOptions">
+                <span class="author-item selected" data-author="me">我</span>
+                <span class="author-item" data-author="partner">TA</span>
+              </div>
+              <button class="btn btn-primary" id="addWishModuleBtn">添加</button>
+            </div>
+            <div class="wish-filters" id="wishFilters">
+              <span class="wish-filter active" data-filter="all">全部</span>
+              <span class="wish-filter" data-filter="active">未完成</span>
+              <span class="wish-filter" data-filter="done">已完成</span>
+            </div>
+            <div class="wish-list" id="wishModuleList"></div>
+            <div class="empty-state" id="wishModuleEmpty" style="display:none;">
+              <div class="empty-icon">⭐</div>
+              <p class="empty-text">这里还没有心愿，写下一个吧～</p>
+            </div>
+          </div>
+
+          <!-- 恋爱相册 -->
+          <div class="home-module-panel" id="home-panel-album">
+            <div class="module-head">
+              <h3 class="module-title">📷 恋爱相册</h3>
+              <span class="module-sub" id="albumCount">0 张照片</span>
+            </div>
+            <div class="album-toolbar">
+              <button class="btn btn-primary" id="albumUploadBtn">＋ 上传照片</button>
+              <span class="album-tip">支持多选，照片保存在本地</span>
+            </div>
+            <input type="file" id="albumFileInput" accept="image/*" multiple hidden>
+            <div class="album-groups" id="albumGroups"></div>
+            <div class="empty-state" id="albumEmpty" style="display:none;">
+              <div class="empty-icon">📷</div>
+              <p class="empty-text">相册空空的，上传你们的合照吧～</p>
+            </div>
+          </div>
+
+          <!-- 实时同屏 -->
+          <div class="home-module-panel" id="home-panel-screen">
+            <div class="module-head">
+              <h3 class="module-title">🖥️ 实时同屏</h3>
+              <span class="module-sub" id="screenStateText">未连接</span>
+            </div>
+
+            <div id="screenIdle">
+              <div class="screen-options">
+                <div class="screen-option">
+                  <div class="screen-option-icon">📡</div>
+                  <h4>发起同屏</h4>
+                  <p>生成房间号，邀请TA一起看相册和心愿</p>
+                  <button class="btn btn-primary" id="hostScreenBtn">发起同屏</button>
+                </div>
+                <div class="screen-option">
+                  <div class="screen-option-icon">🔗</div>
+                  <h4>加入同屏</h4>
+                  <p>输入TA分享的 6 位房间号</p>
+                  <div class="screen-join-row">
+                    <input type="text" id="screenCodeInput" maxlength="6" placeholder="6位房间号">
+                    <button class="btn btn-secondary" id="joinScreenBtn">加入</button>
+                  </div>
+                </div>
+              </div>
+              <p class="screen-note">本地演示版：同屏后双方共看同一份相册与心愿清单</p>
+            </div>
+
+            <div id="screenRoom" style="display:none;">
+              <div class="screen-room-head">
+                <div class="screen-room-code">房间号 <strong id="screenCodeDisplay">------</strong>
+                  <button class="btn btn-ghost btn-sm" id="copyScreenCodeBtn">复制</button>
+                </div>
+                <button class="btn btn-ghost btn-sm" id="leaveScreenBtn">断开同屏</button>
+              </div>
+              <div class="screen-status"><span class="screen-dot"></span><span id="screenStatusText">等待TA加入...</span></div>
+              <div class="screen-shared">
+                <div class="screen-shared-col">
+                  <h4>📷 同看相册</h4>
+                  <div class="screen-album-grid" id="screenAlbumGrid"></div>
+                </div>
+                <div class="screen-shared-col">
+                  <h4>⭐ 同看心愿</h4>
+                  <div class="screen-wish-list" id="screenWishList"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="home-stats">
+          <div class="stat-card">
+            <div class="stat-icon">📝</div>
+            <div class="stat-value" id="statDiary">0</div>
+            <div class="stat-label">日记篇数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📅</div>
+            <div class="stat-value" id="statAnniversary">0</div>
+            <div class="stat-label">纪念日</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">💌</div>
+            <div class="stat-value" id="statWhisper">0</div>
+            <div class="stat-label">悄悄话</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">⭐</div>
+            <div class="stat-value" id="statWish">0</div>
+            <div class="stat-label">心愿</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 心动聊天 -->
+      <section class="page" id="page-chat">
+        <div class="page-header">
+          <h1 class="page-title">心动聊天</h1>
+          <p class="page-subtitle" id="chatSubtitle">和TA聊聊今天发生的小事</p>
+        </div>
+
+        <div class="love-chat-container">
+          <div class="love-chat-head">
+            <div class="chat-peer">
+              <div class="chat-peer-avatar">🧑‍🤝‍🧑</div>
+              <div class="chat-peer-meta">
+                <p class="chat-peer-name" id="chatPeerName">TA</p>
+                <p class="chat-peer-status" id="chatPeerStatus">同步未连接</p>
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-sm" id="chatSyncBtn">刷新消息</button>
+          </div>
+
+          <div class="love-chat-messages" id="chatMessages"></div>
+
+          <div class="love-chat-input">
+            <input type="text" id="chatInput" class="chat-input" placeholder="输入想对TA说的话..." maxlength="500">
+            <button class="btn btn-primary" id="chatSendBtn">发送</button>
+          </div>
+          <p class="chat-tip">💡 「未读」表示TA还没看到，「已读」表示TA已经打开聊天</p>
+        </div>
+      </section>
+
+      <!-- 情侣绑定 -->
+      <section class="page" id="page-bind">
+        <div class="page-header">
+          <h1 class="page-title">情侣绑定</h1>
+          <p class="page-subtitle">用邀请码，把两颗心连在一起</p>
+        </div>
+
+        <div class="bind-card" id="bindUnbound">
+          <div class="bind-step">
+            <div class="bind-step-no">1</div>
+            <h3 class="bind-step-title">生成我的邀请码</h3>
+            <p class="bind-step-desc">生成后发给TA，TA输入这个码即可绑定你</p>
+            <div class="invite-code" id="myInviteCode">尚未生成</div>
+            <div class="bind-btn-row">
+              <button class="btn btn-primary" id="genCodeBtn">生成邀请码</button>
+              <button class="btn btn-secondary" id="copyCodeBtn">复制邀请码</button>
+            </div>
+          </div>
+
+          <div class="bind-divider"><span>或者</span></div>
+
+          <div class="bind-step">
+            <div class="bind-step-no">2</div>
+            <h3 class="bind-step-title">输入TA的邀请码</h3>
+            <p class="bind-step-desc">输入TA发给你的邀请码，立即完成绑定</p>
+            <div class="bind-input-row">
+              <input type="text" class="bind-code-input" id="partnerCodeInput" maxlength="9" placeholder="例如 LOVE-8K2M">
+              <button class="btn btn-primary" id="bindBtn">立即绑定</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="bind-card bind-bound-card" id="bindBound" style="display:none;">
+          <div class="bound-heart">💞</div>
+          <h2 class="bound-title">绑定成功</h2>
+          <div class="bound-pair">
+            <div class="bound-person">
+              <div class="bound-avatar" id="boundMeAvatar">🧑</div>
+              <span class="bound-name" id="boundMeName">我</span>
+            </div>
+            <div class="bound-link">❤️</div>
+            <div class="bound-person">
+              <div class="bound-avatar" id="boundTaAvatar">🧑</div>
+              <span class="bound-name" id="boundTaName">TA</span>
+            </div>
+          </div>
+          <p class="bound-date" id="boundDate"></p>
+          <div class="bound-stats" id="boundStats"></div>
+          <p class="bound-codes" id="boundCodes"></p>
+          <button class="btn btn-ghost" id="unbindBtn">解除绑定</button>
+        </div>
+
+        <div class="share-note">
+          <h3 class="sub-title">🔗 绑定后共享的内容</h3>
+          <div class="share-grid">
+            <div class="share-item">💞<span>情侣状态与主页</span></div>
+            <div class="share-item">📍<span>TA的位置</span></div>
+            <div class="share-item">🔋<span>手机电量</span></div>
+            <div class="share-item">📅<span>纪念日</span></div>
+            <div class="share-item">📖<span>情感日记</span></div>
+            <div class="share-item">💌<span>悄悄话互传</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 纪念日 -->
+      <section class="page" id="page-anniversary">
+        <div class="page-header">
+          <h1 class="page-title">纪念日管理</h1>
+          <p class="page-subtitle">记录每一个心动时刻</p>
+        </div>
+        <div class="toolbar">
+          <button class="btn btn-primary" id="addAnniversaryBtn">
+            <span class="btn-icon">➕</span> 添加纪念日
+          </button>
+        </div>
+        <div class="anniversary-list" id="anniversaryList"></div>
+        <div class="empty-state" id="anniversaryEmpty">
+          <div class="empty-icon">📅</div>
+          <p class="empty-text">还没有纪念日，点击上方按钮添加吧～</p>
+        </div>
+      </section>
+
+      <!-- 情感日记 -->
+      <section class="page" id="page-diary">
+        <div class="page-header">
+          <h1 class="page-title">情感日记</h1>
+          <p class="page-subtitle">记录心情，留住感动</p>
+        </div>
+        <div class="diary-layout">
+          <div class="diary-editor">
+            <div class="author-picker" id="diaryAuthorPicker" style="display:none;">
+              <span class="mood-label">记录人：</span>
+              <div class="author-options">
+                <span class="author-item selected" data-author="me" id="diaryAuthorMe">我</span>
+                <span class="author-item" data-author="partner" id="diaryAuthorTa">TA</span>
+              </div>
+            </div>
+            <div class="mood-selector">
+              <span class="mood-label">今日心情：</span>
+              <div class="mood-options" id="moodOptions">
+                <span class="mood-item" data-mood="happy">😊 开心</span>
+                <span class="mood-item" data-mood="love">🥰 甜蜜</span>
+                <span class="mood-item" data-mood="calm">😌 平静</span>
+                <span class="mood-item" data-mood="sad">😢 难过</span>
+                <span class="mood-item" data-mood="angry">😠 生气</span>
+                <span class="mood-item" data-mood="miss">🥺 想念</span>
+              </div>
+            </div>
+            <input type="text" class="diary-title" id="diaryTitle" placeholder="今天的标题...">
+            <textarea class="diary-content" id="diaryContent" placeholder="写下今天的故事、心情、想说的话..."></textarea>
+            <div class="diary-actions">
+              <button class="btn btn-primary" id="saveDiaryBtn">保存日记</button>
+              <button class="btn btn-ghost" id="clearDiaryBtn">清空</button>
+            </div>
+          </div>
+          <div class="diary-history">
+            <h3 class="sub-title">心情统计</h3>
+            <div class="mood-chart" id="moodChart"></div>
+            <h3 class="sub-title">历史日记</h3>
+            <div class="diary-list" id="diaryList"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 情侣互动 -->
+      <section class="page" id="page-interact">
+        <div class="page-header">
+          <h1 class="page-title">情侣互动</h1>
+          <p class="page-subtitle">甜蜜互动，增进感情</p>
+        </div>
+        <div class="interact-tabs">
+          <div class="tab active" data-tab="whisper">💌 悄悄话</div>
+          <div class="tab" data-tab="wish">⭐ 心愿清单</div>
+          <div class="tab" data-tab="test">🎯 默契测试</div>
+        </div>
+
+        <!-- 悄悄话 -->
+        <div class="tab-content active" id="tab-whisper">
+          <div class="whisper-composer">
+            <textarea class="whisper-input" id="whisperInput" placeholder="写下想对TA说的悄悄话..."></textarea>
+            <div class="whisper-side">
+              <div class="author-options" id="whisperSenderOptions">
+                <span class="author-item selected" data-author="me" id="whisperSenderMe">我</span>
+                <span class="author-item" data-author="partner" id="whisperSenderTa">TA</span>
+              </div>
+              <button class="btn btn-primary" id="sendWhisperBtn">发送悄悄话 💕</button>
+            </div>
+          </div>
+          <div class="whisper-list" id="whisperList"></div>
+          <div class="empty-state" id="whisperEmpty">
+            <div class="empty-icon">💌</div>
+            <p class="empty-text">还没有悄悄话，写一句给TA吧～</p>
+          </div>
+        </div>
+
+        <!-- 心愿清单 -->
+        <div class="tab-content" id="tab-wish">
+          <div class="wish-composer">
+            <input type="text" class="wish-input" id="wishInput" placeholder="写下一个心愿，比如：一起去看海...">
+            <button class="btn btn-primary" id="addWishBtn">添加心愿</button>
+          </div>
+          <div class="wish-list" id="wishList"></div>
+          <div class="empty-state" id="wishEmpty">
+            <div class="empty-icon">⭐</div>
+            <p class="empty-text">还没有心愿，添加一个吧～</p>
+          </div>
+        </div>
+
+        <!-- 默契测试 -->
+        <div class="tab-content" id="tab-test">
+          <div class="test-container">
+            <div class="test-intro">
+              <div class="test-icon">🎯</div>
+              <h3>情侣默契测试</h3>
+              <p>通过有趣的问题，看看你们的默契度有多高！</p>
+              <button class="btn btn-primary" id="startTestBtn">开始测试</button>
+            </div>
+            <div class="test-area" id="testArea" style="display:none;">
+              <div class="test-progress">
+                <div class="progress-bar" id="progressBar"></div>
+              </div>
+              <div class="test-question" id="testQuestion"></div>
+              <div class="test-options" id="testOptions"></div>
+              <div class="test-result" id="testResult" style="display:none;">
+                <div class="result-icon" id="resultIcon">💖</div>
+                <div class="result-score" id="resultScore"></div>
+                <div class="result-msg" id="resultMsg"></div>
+                <button class="btn btn-primary" id="restartTestBtn">再测一次</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 设置 -->
+      <section class="page" id="page-settings">
+        <div class="page-header">
+          <h1 class="page-title">设置</h1>
+          <p class="page-subtitle">个性化你的心动伴侣</p>
+        </div>
+        <div class="settings-container">
+          <div class="settings-section">
+            <h3 class="sub-title">💕 恋爱信息</h3>
+            <div class="form-row">
+              <label>我的昵称</label>
+              <input type="text" id="settingNickname" class="form-input">
+            </div>
+            <div class="form-row">
+              <label>TA的昵称</label>
+              <input type="text" id="settingPartner" class="form-input">
+            </div>
+            <div class="form-row">
+              <label>在一起的日期</label>
+              <input type="date" id="settingStartDate" class="form-input">
+            </div>
+            <button class="btn btn-primary" id="saveProfileBtn">保存信息</button>
+          </div>
+
+          <div class="settings-section">
+            <h3 class="sub-title">☁️ 云服务与账号</h3>
+            <div class="cloud-status-row">
+              <span class="cloud-dot" id="cloudStatusDot"></span>
+              <span id="cloudStatusText">未配置 Supabase，当前为本地演示模式</span>
+            </div>
+            <div class="form-row">
+              <label>Supabase URL</label>
+              <input type="text" id="settingSupabaseUrl" class="form-input" placeholder="https://xxxx.supabase.co">
+            </div>
+            <div class="form-row">
+              <label>Supabase anon key</label>
+              <input type="text" id="settingSupabaseKey" class="form-input" placeholder="anon public key">
+            </div>
+            <div class="form-row">
+              <label>高德 Web服务 Key</label>
+              <input type="text" id="settingAmapKey" class="form-input" placeholder="用于把经纬度转成 XX市 · XX区">
+            </div>
+            <div class="data-actions">
+              <button class="btn btn-secondary" id="saveCloudConfigBtn">保存云配置</button>
+              <button class="btn btn-ghost" id="cloudRefreshBtn">重新同步</button>
+              <button class="btn btn-ghost" id="signOutBtn" style="display:none;">退出登录</button>
+            </div>
+            <p class="data-hint" id="cloudAccountHint">保存后自动刷新页面生效。anon key 可以公开，切勿填写 service_role key。</p>
+          </div>
+
+          <div class="settings-section">
+            <h3 class="sub-title">🎨 主题</h3>
+            <div class="theme-options">
+              <div class="theme-card active" data-theme="romantic">
+                <div class="theme-preview romantic"></div>
+                <span>浪漫粉</span>
+              </div>
+              <div class="theme-card" data-theme="warm">
+                <div class="theme-preview warm"></div>
+                <span>暖阳橙</span>
+              </div>
+              <div class="theme-card" data-theme="dream">
+                <div class="theme-preview dream"></div>
+                <span>梦幻紫</span>
+              </div>
+              <div class="theme-card" data-theme="ocean">
+                <div class="theme-preview ocean"></div>
+                <span>海洋蓝</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3 class="sub-title">💾 数据管理</h3>
+            <div class="data-actions">
+              <button class="btn btn-secondary" id="exportBtn">
+                <span class="btn-icon">📤</span> 导出数据
+              </button>
+              <button class="btn btn-secondary" id="importBtn">
+                <span class="btn-icon">📥</span> 导入数据
+              </button>
+            </div>
+            <p class="data-hint">本地缓存可随时导出备份；绑定后的共享数据同时保存在 Supabase</p>
+          </div>
+
+          <div class="settings-section">
+            <h3 class="sub-title">ℹ️ 关于</h3>
+            <p class="about-text">心动伴侣 v1.0.0</p>
+            <p class="about-text">用心记录每一份心动 💕</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- 通用弹窗 -->
+  <div class="modal" id="modal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">标题</h3>
+        <button class="modal-close" id="modalClose">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+      <!-- 提示框 -->
+      <div class="toast" id="toast"></div>
+
+      <!-- 相册大图预览 -->
+      <div class="album-lightbox" id="albumLightbox" style="display:none;">
+        <div class="lightbox-backdrop" onclick="closeAlbumLightbox()"></div>
+        <div class="lightbox-content">
+          <button class="lightbox-close" onclick="closeAlbumLightbox()">✕</button>
+          <img id="lightboxImg" alt="相片">
+          <div class="lightbox-bar">
+            <span id="lightboxMeta"></span>
+            <button class="btn btn-ghost btn-sm" id="lightboxDeleteBtn">删除照片</button>
+          </div>
+        </div>
+      </div>
+
+  <script src="default-data.js"></script>
+  <script src="config.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="cloud.js"></script>
+  <script src="vendor/vue.global.prod.js"></script>
+  <script src="renderer-vue.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>
